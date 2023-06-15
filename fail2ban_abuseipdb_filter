@@ -73,7 +73,7 @@ for ip in ${my_array[@]}; do
     fi
 
     curl_result=$(timeout -s SIGINT ${curl_timeout} curl -s "https://www.abuseipdb.com/check/${ip}/json?key=$abuseipdb_api_key")
-    if [ "$curl_result" == "[]" ]; then
+    if echo "$curl_result" | jq -e '.data.totalReports == 0' >/dev/null; then
         echo "$(date +"%b %d %H:%M:%S") ${ip}: not reported."
         echo "${current_time} ${ip}" >> ${not_reported_cache_file}
         continue
