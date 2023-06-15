@@ -71,8 +71,14 @@ for ip in ${my_array[@]}; do
         echo "$(date +"%b %d %H:%M:%S") ${ip}: found ${iptables_chain} rule with this IP, skipping."
         continue
     fi
-
-    curl_result=$(timeout -s SIGINT ${curl_timeout} curl -s "https://www.abuseipdb.com/check/${ip}/json?key=$abuseipdb_api_key")
+    
+    curl_result=$(timeout -s SIGINT ${curl_timeout}  curl -s -G https://api.abuseipdb.com/api/v2/check \
+        --data-urlencode "ipAddress=${ip}" \
+        -d maxAgeInDays=90 \
+        -d verbose \
+        -H "Key: $abuseipdb_api_key" \
+        -H "Accept: application/json")
+    
     if echo "$curl_result" | jq -e '.data.totalReports == 0' >/dev/null; then
         echo "$(date +"%b %d %H:%M:%S") ${ip}: not reported."
         echo "${current_time} ${ip}" >> ${not_reported_cache_file}
@@ -80,9 +86,9 @@ for ip in ${my_array[@]}; do
     fi
 
     # We use the newest report if they're multiple, or the only one available.
-    abuse_confidence=$(echo ${curl_result} | jq 'if type == "object" then .abuseConfidenceScore? else .[0]?.abuseConfidenceScore? end')
+    abuse_confidence=$(echo ${curl_result} | jq 'if type == "object" then .data.abuseConfidenceScore? else .[0]?.abuseConfidenceScore? end')
     if [[ "${abuse_confidence}" == "" ]] || [[ "${abuse_confidence}" == "null" ]]; then
-        echo "$(date +"%b %d %H:%M:%S") ${ip}: curl check failed."
+        echo "$(date +"%b %d %H:%M:%S") ${ip}: curl check failed, , https://www.abuseipdb.com/check/${ip}"
         continue
     fi
 
